@@ -5,29 +5,8 @@
 //  Created by Simon Whitty on 2/11/18.
 //  Copyright 2020 Simon Whitty
 //
-//  Distributed under the permissive zlib license
-//  Get the latest version from here:
-//
-//  https://github.com/swhitty/SwiftDraw
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty.  In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for any purpose,
-//  including commercial applications, and to alter it and redistribute it
-//  freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//
-//  3. This notice may not be removed or altered from any source distribution.
-//
+
+// swiftlint:disable all
 
 import Foundation
 
@@ -36,11 +15,11 @@ extension XMLParser {
     struct Scanner {
         
         private let scanner: Foundation.Scanner
-        var currentIndex: String.Index
-
+        var scanLocation: Int
+        
         init(text: String) {
             self.scanner = Foundation.Scanner(string: text)
-            self.currentIndex = self.scanner.currentIndex
+            self.scanLocation = self.scanner.scanLocation
             self.scanner.charactersToBeSkipped = Foundation.CharacterSet.whitespacesAndNewlines
         }
         
@@ -57,141 +36,140 @@ extension XMLParser {
         }
         
         mutating func scanString(matchingAny tokens: Set<String>) throws -> String {
-            scanner.currentIndex = currentIndex
-            guard let match = tokens.first(where: { scanner.scanString($0) != nil }) else {
+            scanner.scanLocation = scanLocation
+            guard let match = tokens.first(where: { scanner.scanString($0, into: nil) }) else {
                 throw Error.invalid
             }
-            currentIndex = scanner.currentIndex
+            scanLocation = scanner.scanLocation
             return match
         }
         
         mutating func scanCase<T: RawRepresentable & CaseIterable>(from type: T.Type) throws -> T where T.RawValue == String {
-            scanner.currentIndex = currentIndex
+            scanner.scanLocation = scanLocation
             
-            guard let match = type.allCases.first(where: { scanner.scanString($0.rawValue) != nil }) else {
+            guard let match = type.allCases.first(where: { scanner.scanString($0.rawValue, into: nil) }) else {
                 throw Error.invalid
             }
-            currentIndex = scanner.currentIndex
+            scanLocation = scanner.scanLocation
             return match
         }
         
         mutating func scanString(matchingAny characters: Foundation.CharacterSet) throws -> String {
-            scanner.currentIndex = currentIndex
-            guard
-                let match = scanner.scanCharacters(from: characters),
-                match.isEmpty == false else {
-                throw Error.invalid
-            }
+            scanner.scanLocation = scanLocation
+#if os(Linux)
+            var result: String?
+#else
+            var result: NSString?
+#endif
             
-            currentIndex = scanner.currentIndex
+            guard
+                scanner.scanCharacters(from: characters, into: &result),
+                let match = result.map({ $0 as String }),
+                match.isEmpty == false else {
+                    throw Error.invalid
+                }
+            
+            scanLocation = scanner.scanLocation
             return match
         }
-
+        
         mutating func doScanString(_ string: String) -> Bool {
-            scanner.currentIndex = currentIndex
-            guard scanner.scanString(string) != nil else {
-                return false
-            }
-            currentIndex = scanner.currentIndex
+            scanner.scanLocation = scanLocation
+#if os(Linux)
+            var result: String?
+#else
+            var result: NSString?
+#endif
+            guard scanner.scanString(string, into: &result),
+                  result != nil else {
+                      return false
+                  }
+            scanLocation = scanner.scanLocation
             return true
         }
-
+        
         mutating func scanString(upTo token: String) throws -> String {
-            scanner.currentIndex = currentIndex
-            guard let match = scanner.scanUpToString(token) else {
-                throw Error.invalid
-            }
-
-            currentIndex = scanner.currentIndex
+            scanner.scanLocation = scanLocation
+#if os(Linux)
+            var result: String?
+#else
+            var result: NSString?
+#endif
+            guard
+                scanner.scanUpTo(token, into: &result),
+                let match = result.map({ $0 as String }) else {
+                    throw Error.invalid
+                }
+            
+            scanLocation = scanner.scanLocation
             return match
         }
         
         mutating func scanString(upTo characters: Foundation.CharacterSet) throws -> String {
-            let location = currentIndex
-            guard let match = scanner.scanUpToCharacters(from: characters) else {
-                scanner.currentIndex = location
-                throw Error.invalid
-            }
-            currentIndex = scanner.currentIndex
+            let location = scanLocation
+#if os(Linux)
+            var result: String?
+#else
+            var result: NSString?
+#endif
+            guard
+                scanner.scanUpToCharacters(from: characters, into: &result),
+                let match = result.map({ $0 as String }) else {
+                    scanner.scanLocation = location
+                    throw Error.invalid
+                }
+            scanLocation = scanner.scanLocation
             return match
         }
         
         mutating func scanCharacter(matchingAny characters: Foundation.CharacterSet) throws -> Character {
-            let location = currentIndex
-            guard let scalar = scanner.scan(first: characters) else {
-                scanner.currentIndex = location
-                throw Error.invalid
-            }
-            currentIndex = scanner.currentIndex
-            return Character(scalar)
+            let match = try scanString(matchingAny: characters)
+            scanLocation = scanner.scanLocation - (match.count - 1)
+            return match[match.startIndex]
         }
-
+        
         mutating func scanUInt8() throws -> UInt8 {
-            scanner.currentIndex = currentIndex
+            scanner.scanLocation = scanLocation
             var longVal: UInt64 = 0
             guard
                 scanner.scanUnsignedLongLong(&longVal),
                 let val = UInt8(exactly: longVal) else {
-                throw Error.invalid
-            }
-            currentIndex = scanner.currentIndex
+                    throw Error.invalid
+                }
+            scanLocation = scanner.scanLocation
             return val
         }
         
         mutating func scanFloat() throws -> Float {
-            scanner.currentIndex = currentIndex
-            guard let val = scanner.scanFloat() else {
+            scanner.scanLocation = scanLocation
+            var val: Float = 0
+            guard scanner.scanFloat(&val) else {
                 throw Error.invalid
             }
-            currentIndex = scanner.currentIndex
+            scanLocation = scanner.scanLocation
             return val
         }
         
         mutating func scanDouble() throws -> Double {
-            scanner.currentIndex = currentIndex
-            guard let val = scanner.scanDouble() else {
+            scanner.scanLocation = scanLocation
+            var val: Double = 0
+            guard scanner.scanDouble(&val) else {
                 throw Error.invalid
             }
-            currentIndex = scanner.currentIndex
+            scanLocation = scanner.scanLocation
             return val
         }
-
-        mutating func scanUnit(_ unit: DOM.Unit) -> Bool {
-            scanner.currentIndex = currentIndex
-            guard scanner.scanString(unit.rawValue) != nil else {
-                return false
-            }
-            currentIndex = scanner.currentIndex
-            return true
-        }
-
-        mutating func scanUnit() -> DOM.Unit? {
-            if scanUnit(.pixel) {
-                return .pixel
-            } else if scanUnit(.inch) {
-                return .inch
-            } else if scanUnit(.centimeter) {
-                return .centimeter
-            } else if scanUnit(.millimeter) {
-                return .millimeter
-            } else if scanUnit(.point) {
-                return .point
-            } else if scanUnit(.pica) {
-                return .pica
-            } else {
-                return nil
-            }
-        }
-
+        
         mutating func scanLength() throws -> DOM.Length {
-            scanner.currentIndex = currentIndex
+            scanner.scanLocation = scanLocation
+            var int64: Int64 = 0
             guard
-                let int64 = scanner.scanInt64(),
+                scanner.scanInt64(&int64),
                 let val = DOM.Length(exactly: int64),
                 val >= 0 else {
-                throw Error.invalid
-            }
-            currentIndex = scanner.currentIndex
+                    throw Error.invalid
+                }
+            scanLocation = scanner.scanLocation
             return val
         }
         
@@ -200,24 +178,22 @@ extension XMLParser {
         }
         
         mutating func scanCoordinate() throws -> DOM.Coordinate {
-            let double = try scanDouble()
-            let unit = scanUnit() ?? .pixel
-            return DOM.Coordinate(double.apply(unit: unit))
+            return DOM.Coordinate(try scanDouble())
         }
         
         mutating func scanPercentageFloat() throws -> Float {
-            scanner.currentIndex = currentIndex
+            scanner.scanLocation = scanLocation
             let val = try scanFloat()
             guard val >= 0.0, val <= 1.0 else {
                 throw Error.invalid
             }
-            currentIndex = scanner.currentIndex
+            scanLocation = scanner.scanLocation
             return val
         }
         
         mutating func scanPercentage() throws -> Float {
-            let initialLocation = currentIndex
-            scanner.currentIndex = currentIndex
+            let initialLocation = scanLocation
+            scanner.scanLocation = scanLocation
             
             let numeric = Foundation.CharacterSet(charactersIn: "+-0123456789.Ee")
             let numericString = try scanString(matchingAny: numeric)
@@ -225,11 +201,11 @@ extension XMLParser {
             guard
                 let val = Double(numericString),
                 val >= 0, val <= 100,
-                (scanner.scanString("%") != nil) || val == 0 else {
-                currentIndex = initialLocation
-                throw Error.invalid
-            }
-            currentIndex = scanner.currentIndex
+                scanner.scanString("%", into: nil) || val == 0 else {
+                    scanLocation = initialLocation
+                    throw Error.invalid
+                }
+            scanLocation = scanner.scanLocation
             return Float(val / 100.0)
         }
     }
@@ -260,7 +236,7 @@ extension Scanner {
     }
     
     func scanBool() throws -> Bool {
-        guard let match = Boolean.allCases.first(where: { self.scanString($0.rawValue) != nil }) else {
+        guard let match = Boolean.allCases.first(where: { self.scanString($0.rawValue, into: nil) }) else {
             throw Error.invalid
         }
         
@@ -268,23 +244,32 @@ extension Scanner {
     }
     
     func scan(first set: Foundation.CharacterSet) -> UnicodeScalar? {
-        let start = currentIndex
-        guard let scalar = scanCharacters(from: set)?.unicodeScalars.first else {
-            currentIndex = start
-            return nil
+#if os(Linux)
+        var val: String?
+#else
+        var val: NSString?
+#endif
+        let start = scanLocation
+        guard scanCharacters(from: set, into: &val),
+              let string = val,
+              string.length > 0 else {
+                  
+                  scanLocation = start
+                  return nil
+              }
+        
+        if string.length > 1 {
+            scanLocation -= (string.length - 1)
         }
-
-        currentIndex = start
-        _ = scanCharacter()
-        return scalar
+        
+        return UnicodeScalar(string.character(at: 0))
     }
     
     func scanCoordinate() throws -> DOM.Coordinate {
-        guard let val = scanDouble() else { throw XMLParser.Error.invalid }
+        var val: Double = 0
+        guard scanDouble(&val) else { throw XMLParser.Error.invalid }
         return DOM.Coordinate(val)
     }
-
-    var currentOffet: Int {
-        string.distance(from: string.startIndex, to: currentIndex)
-    }
 }
+
+// swiftlint:enable all

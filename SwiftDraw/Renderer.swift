@@ -5,30 +5,10 @@
 //  Created by Simon Whitty on 4/6/17.
 //  Copyright 2020 Simon Whitty
 //
-//  Distributed under the permissive zlib license
-//  Get the latest version from here:
-//
-//  https://github.com/swhitty/SwiftDraw
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty.  In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for any purpose,
-//  including commercial applications, and to alter it and redistribute it
-//  freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//
-//  3. This notice may not be removed or altered from any source distribution.
-//
+
 import Foundation
+
+// swiftlint:disable all
 
 protocol RendererTypes {
     associatedtype Float: Equatable
@@ -37,7 +17,7 @@ protocol RendererTypes {
     associatedtype Rect: Equatable
     associatedtype Color: Equatable
     associatedtype Gradient: Equatable
-    associatedtype Mask: Equatable
+    associatedtype Mask
     associatedtype Path: Equatable
     associatedtype Pattern: Equatable
     associatedtype Transform: Equatable
@@ -50,7 +30,7 @@ protocol RendererTypes {
 
 protocol RendererTypeProvider {
     associatedtype Types: RendererTypes
-
+    
     func createFloat(from float: LayerTree.Float) -> Types.Float
     func createPoint(from point: LayerTree.Point) -> Types.Point
     func createSize(from size: LayerTree.Size) -> Types.Size
@@ -67,24 +47,23 @@ protocol RendererTypeProvider {
     func createLineCap(from cap: LayerTree.LineCap) -> Types.LineCap
     func createLineJoin(from join: LayerTree.LineJoin) -> Types.LineJoin
     func createImage(from image: LayerTree.Image) -> Types.Image?
-    func createSize(from image: Types.Image) -> LayerTree.Size
-
+    
     func getBounds(from shape: LayerTree.Shape) -> LayerTree.Rect
 }
 
 protocol Renderer {
     associatedtype Types: RendererTypes
-
+    
     func pushState()
     func popState()
     func pushTransparencyLayer()
     func popTransparencyLayer()
-
+    
     func concatenate(transform: Types.Transform)
     func translate(tx: Types.Float, ty: Types.Float)
     func rotate(angle: Types.Float)
     func scale(sx: Types.Float, sy: Types.Float)
-
+    
     func setFill(color: Types.Color)
     func setFill(pattern: Types.Pattern)
     func setStroke(color: Types.Color)
@@ -96,11 +75,11 @@ protocol Renderer {
     func setClip(mask: Types.Mask, frame: Types.Rect)
     func setAlpha(_ alpha: Types.Float)
     func setBlend(mode: Types.BlendMode)
-
+    
     func stroke(path: Types.Path)
     func clipStrokeOutline(path: Types.Path)
     func fill(path: Types.Path, rule: Types.FillRule)
-    func draw(image: Types.Image, in rect: Types.Rect)
+    func draw(image: Types.Image)
     func draw(linear gradient: Types.Gradient, from start: Types.Point, to end: Types.Point)
     func draw(radial gradient: Types.Gradient, startCenter: Types.Point, startRadius: Types.Float, endCenter: Types.Point, endRadius: Types.Float)
 }
@@ -152,15 +131,15 @@ extension Renderer {
             clipStrokeOutline(path: p)
         case .fill(let p, let r):
             fill(path: p, rule: r)
-        case .draw(image: let i, in: let r):
-            draw(image: i, in: r)
+        case .draw(image: let i):
+            draw(image: i)
         case .drawLinearGradient(let g, let start, let end):
             draw(linear: g, from: start, to: end)
         case let .drawRadialGradient(g, startCenter, startRadius, endCenter, endRadius):
             draw(radial: g, startCenter: startCenter, startRadius: startRadius, endCenter: endCenter, endRadius: endRadius)
         }
     }
-
+    
     func perform(_ commands: [RendererCommand<Types>]) {
         for cmd in commands {
             perform(cmd)
@@ -168,15 +147,15 @@ extension Renderer {
     }
 }
 
-enum RendererCommand<Types: RendererTypes>: @unchecked Sendable {
+enum RendererCommand<Types: RendererTypes> {
     case pushState
     case popState
-
+    
     case concatenate(transform: Types.Transform)
     case translate(tx: Types.Float, ty: Types.Float)
     case rotate(angle: Types.Float)
     case scale(sx: Types.Float, sy: Types.Float)
-
+    
     case setFill(color: Types.Color)
     case setFillPattern(Types.Pattern)
     case setStroke(color: Types.Color)
@@ -188,23 +167,17 @@ enum RendererCommand<Types: RendererTypes>: @unchecked Sendable {
     case setClipMask(Types.Mask, frame: Types.Rect)
     case setAlpha(Types.Float)
     case setBlend(mode: Types.BlendMode)
-
+    
     case stroke(Types.Path)
     case clipStrokeOutline(Types.Path)
     case fill(Types.Path, rule: Types.FillRule)
-
-    case draw(image: Types.Image, in: Types.Rect)
+    
+    case draw(image: Types.Image)
     case drawLinearGradient(Types.Gradient, from: Types.Point, to: Types.Point)
     case drawRadialGradient(Types.Gradient, startCenter: Types.Point, startRadius: Types.Float, endCenter: Types.Point, endRadius: Types.Float)
-
+    
     case pushTransparencyLayer
     case popTransparencyLayer
 }
 
-
-#if canImport(CoreGraphics)
-import CoreGraphics
-
-extension RendererCommand<CGTypes>: Equatable { }
-extension RendererCommand<CGTypes>: Hashable { }
-#endif
+// swiftlint:enable all

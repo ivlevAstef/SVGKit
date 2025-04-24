@@ -5,32 +5,9 @@
 //  Created by Simon Whitty on 3/6/17.
 //  Copyright 2020 WhileLoop Pty Ltd. All rights reserved.
 //
-//  Distributed under the permissive zlib license
-//  Get the latest version from here:
-//
-//  https://github.com/swhitty/SwiftDraw
-//
-//  This software is provided 'as-is', without any express or implied
-//  warranty.  In no event will the authors be held liable for any damages
-//  arising from the use of this software.
-//
-//  Permission is granted to anyone to use this software for any purpose,
-//  including commercial applications, and to alter it and redistribute it
-//  freely, subject to the following restrictions:
-//
-//  1. The origin of this software must not be misrepresented; you must not
-//  claim that you wrote the original software. If you use this software
-//  in a product, an acknowledgment in the product documentation would be
-//  appreciated but is not required.
-//
-//  2. Altered source versions must be plainly marked as such, and must not be
-//  misrepresented as being the original software.
-//
-//  3. This notice may not be removed or altered from any source distribution.
-//
 
 extension LayerTree {
-
+    
     enum Shape: Hashable {
         case line(between: [Point])
         case rect(within: Rect, radii: Size)
@@ -38,15 +15,10 @@ extension LayerTree {
         case polygon(between: [Point])
         case path(Path)
     }
-
-    struct ClipShape: Hashable {
-        var shape: Shape
-        var transform: Transform.Matrix
-    }
 }
 
 extension LayerTree.Shape {
-
+    
     var path: LayerTree.Path {
         switch self {
         case let .line(between: points):
@@ -64,17 +36,21 @@ extension LayerTree.Shape {
 }
 
 extension LayerTree.Path {
-
+    
     static func makeLine(between points: [LayerTree.Point]) -> LayerTree.Path {
-        guard let first = points.first else { return .init() }
+        guard let first = points.first else {
+            return .init()
+        }
         let segments = [LayerTree.Path.Segment.move(to: first)] +
         points.dropFirst().map(LayerTree.Path.Segment.line)
-
+        
         return .init(segments)
     }
-
-    static func makeRect(within rect: LayerTree.Rect,
-                         radii: LayerTree.Size) -> LayerTree.Path {
+    
+    static func makeRect(
+        within rect: LayerTree.Rect,
+        radii: LayerTree.Size
+    ) -> LayerTree.Path {
         if radii == .zero {
             let path = LayerTree.Path()
             path.move(to: .init(rect.maxX, rect.minY))
@@ -98,9 +74,9 @@ extension LayerTree.Path {
             return path
         }
     }
-
+    
     static func makeEllipse(within rect: LayerTree.Rect) -> LayerTree.Path {
-        let radii = LayerTree.Size.init(rect.width / 2, rect.height / 2)
+        let radii = LayerTree.Size(rect.width / 2, rect.height / 2)
         let path = LayerTree.Path()
         path.move(to: .init(rect.minX, rect.midY))
         path.arc(to: .init(rect.maxX, rect.midY), large: false, radii: radii)
@@ -108,7 +84,7 @@ extension LayerTree.Path {
         path.close()
         return path
     }
-
+    
     static func makePolygon(between points: [LayerTree.Point]) -> LayerTree.Path {
         let path = makeLine(between: points)
         if !path.segments.isEmpty {
@@ -119,9 +95,12 @@ extension LayerTree.Path {
 }
 
 private extension LayerTree.Path {
-
+    // swiftlint:disable all
+    
     func arc(to point: LayerTree.Point, large: Bool = false, radii: LayerTree.Size) {
-        guard let location = location else { return }
+        guard let location else {
+            return
+        }
         segments.append(contentsOf: LayerTree.Builder.makeArc(
             from: location,
             to: point,
@@ -132,4 +111,6 @@ private extension LayerTree.Path {
             rotation: 0
         ))
     }
+    
+    // swiftlint:enable all
 }
