@@ -13,5 +13,4 @@ Pod::Spec.new do |s|
 
   s.ios.source_files = 'NativeSVG.swift', 'UIImage+SVG.swift', 'SwiftDraw/**/*.swift'
   
-  
-
+end
