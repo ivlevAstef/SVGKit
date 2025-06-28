@@ -11,6 +11,6 @@ Pod::Spec.new do |s|
   s.source = { :git => 'https://github.com/ivlevAstef/SVGKit', :tag => "v#{s.version}" }
   s.platform = :ios, '15.0'
 
-  s.ios.source_files = 'NativeSVG.swift', 'UIImage+SVG.swift', 'SwiftDraw/**/*.swift'
+  s.ios.source_files = 'Sources/**/*.swift'
   
 end
